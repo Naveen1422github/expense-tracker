@@ -1,6 +1,6 @@
 {
-  "name": "expense",
-  "short_name": "expense",
+  "name": "kharchly",
+  "short_name": "kharchly",
   "description": "One-tap expense tracker: spend, lend, borrow, budgets, reports.",
   "start_url": "./",
   "scope": "./",

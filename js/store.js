@@ -3,13 +3,14 @@
 // rule: validate -> write kv -> only then update state. a failed write changes nothing.
 import { nowTs, monthKey, dayKey, addMonths, monthsBetween } from './dates.js';
 import { KINDS } from './ledger.js';
+import { SCOPES, PERIODS } from './budgets.js';
 
 export const SCHEMA_VERSION = 1;
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 const K = {
   categories: 'categories', tags: 'tags', items: 'items', meta: 'meta',
-  people: 'people', ledger: 'ledger',
+  people: 'people', ledger: 'ledger', budgets: 'budgets',
   month: (mk) => `spend:${mk}`,
 };
 const SEED_CATEGORIES = ['Food', 'Groceries', 'Travel', 'Bills', 'Shopping'];
@@ -33,7 +34,7 @@ function cleanName(name) {
 }
 
 export function createStore(kv, { now = nowTs, makeId = uid } = {}) {
-  const state = { categories: [], tags: [], items: [], people: [], ledger: [], meta: defaultMeta(), months: new Map() };
+  const state = { categories: [], tags: [], items: [], people: [], ledger: [], budgets: [], meta: defaultMeta(), months: new Map() };
 
   // ---------- boot ----------
   async function boot() {
@@ -59,6 +60,7 @@ export function createStore(kv, { now = nowTs, makeId = uid } = {}) {
     state.items = (await kv.get(K.items)) || [];
     state.people = (await kv.get(K.people)) || [];
     state.ledger = (await kv.get(K.ledger)) || [];
+    state.budgets = (await kv.get(K.budgets)) || [];
 
     state.months = new Map();
     const cur = monthKey(now());
@@ -232,6 +234,44 @@ export function createStore(kv, { now = nowTs, makeId = uid } = {}) {
     await writeMonth(mk, [...list, entry]);
   }
 
+  // ---------- budgets ----------
+  async function clearBudgetWarning(budgetId) {
+    const warned = state.meta.budgetWarnings || {};
+    if (!warned[budgetId]) return;
+    const { [budgetId]: _gone, ...rest } = warned;
+    const meta = { ...state.meta, budgetWarnings: rest };
+    await kv.set(K.meta, meta);
+    state.meta = meta;
+  }
+
+  async function saveBudget({ id, scope, refId = null, period, limit }) {
+    if (!SCOPES.includes(scope)) throw new Error('Pick what the budget applies to');
+    if (!PERIODS.includes(period)) throw new Error('Pick day, week or month');
+    if (!Number.isInteger(limit) || limit <= 0) throw new Error('Limit must be more than zero');
+    if (scope === 'all') refId = null;
+    else if (!(scope === 'category' ? state.categories : state.items).some((r) => r.id === refId)) {
+      throw new Error(`Pick a ${scope}`);
+    }
+    const dup = state.budgets.find((b) => b.id !== id && b.scope === scope && b.refId === refId && b.period === period);
+    if (dup) throw new Error(`There is already a ${period} budget for that`);
+    const budget = await upsert(K.budgets, 'budgets', { id: id || makeId(), scope, refId, period, limit });
+    if (id) await clearBudgetWarning(id); // a changed limit may warn again
+    return budget;
+  }
+
+  async function deleteBudget(budgetId) {
+    const next = state.budgets.filter((b) => b.id !== budgetId);
+    await kv.set(K.budgets, next);
+    state.budgets = next;
+    await clearBudgetWarning(budgetId);
+  }
+
+  async function markBudgetWarned(budgetId, periodKey, level) {
+    const meta = { ...state.meta, budgetWarnings: { ...(state.meta.budgetWarnings || {}), [budgetId]: { periodKey, level } } };
+    await kv.set(K.meta, meta);
+    state.meta = meta;
+  }
+
   // ---------- people + ledger ----------
   async function markPeopleDirty() {
     if (state.meta.dirtyPeople) return;
@@ -357,6 +397,9 @@ export function createStore(kv, { now = nowTs, makeId = uid } = {}) {
     updateLedger: serial(updateLedger),
     deleteLedger: serial(deleteLedger),
     restoreLedger: serial(restoreLedger),
+    saveBudget: serial(saveBudget),
+    deleteBudget: serial(deleteBudget),
+    markBudgetWarned: serial(markBudgetWarned),
     entriesForDay, monthEntries, loadedEntries, loadRange,
     exportRaw,
     wipe: serial(wipe),

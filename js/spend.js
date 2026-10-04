@@ -5,6 +5,7 @@ import { formatINR, toInputValue } from './money.js';
 import { nowTs, todayKey, dayKey, monthKey, timeOf, joinTs, addDays, formatDayLabel, formatMonthLabel } from './dates.js';
 import { rankItems } from './frecency.js';
 import { textField, noteField, amountField, categoryField, tagToggles, dateTimeFields } from './fields.js';
+import { renderBudgetStrip, takeBudgetNote, withNote } from './budget-view.js';
 
 const TOP_N = 12;
 const sum = (list) => list.reduce((s, e) => s + e.amount, 0);
@@ -42,6 +43,7 @@ export function renderSpend() {
   attachSwipe(chips, () => {}, { stopProp: true });
   pad.append(
     renderTotals(),
+    renderBudgetStrip(),
     renderSearch(refresh),
     chips,
     grid,
@@ -146,7 +148,8 @@ async function quickLog(item) {
     const entry = await store.logItem(item, { ts: tsForViewedDay() });
     rerender();
     const where = view.day === todayKey() ? '' : ` → ${formatDayLabel(view.day).toLowerCase()}`;
-    undoToast(`${item.name} ${formatINR(entry.amount)}${where}`, () => store.deleteSpend(entry));
+    const note = await takeBudgetNote();
+    undoToast(withNote(`${item.name} ${formatINR(entry.amount)}${where}`, note), () => store.deleteSpend(entry));
   } catch (e) { toast(`not saved: ${e.message}`, 'error'); }
 }
 
@@ -225,7 +228,7 @@ function openLogModal(item) {
               const entry = await store.logItem(item, f);
               close();
               await jumpTo(entry.ts);
-              undoToast(`${item.name} ${formatINR(entry.amount)}`, () => store.deleteSpend(entry));
+              undoToast(withNote(`${item.name} ${formatINR(entry.amount)}`, await takeBudgetNote()), () => store.deleteSpend(entry));
             } catch (e) { toast(`not saved: ${e.message}`, 'error'); }
           },
         }, 'log'),
@@ -334,7 +337,7 @@ function openOneOffModal() {
               const entry = await store.logSpend({ ...f, itemId: null, qty: 1 });
               close();
               await jumpTo(entry.ts);
-              undoToast(`${entry.name} ${formatINR(entry.amount)}`, () => store.deleteSpend(entry));
+              undoToast(withNote(`${entry.name} ${formatINR(entry.amount)}`, await takeBudgetNote()), () => store.deleteSpend(entry));
             } catch (e) { toast(`not saved: ${e.message}`, 'error'); }
           },
         }, 'log'),
@@ -371,7 +374,7 @@ function openEntryModal(entry) {
               const updated = await store.updateSpend(entry, f);
               close();
               await jumpTo(updated.ts);
-              toast('saved', 'success');
+              toast(withNote('saved', await takeBudgetNote()), 'success');
             } catch (e) { toast(`not saved: ${e.message}`, 'error'); }
           },
         }, 'save'),

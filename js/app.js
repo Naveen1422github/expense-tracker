@@ -1,4 +1,4 @@
-// expense — one-tap expense tracker PWA. vanilla JS modules, IndexedDB, no dependencies.
+// kharchly — one-tap expense tracker PWA. vanilla JS modules, IndexedDB, no dependencies.
 import { $, el, icon, attachSwipe } from './ui.js';
 import { store, view, setRender } from './ctx.js';
 import { renderSpend } from './spend.js';
@@ -35,7 +35,7 @@ function renderHeader() {
   return el('div', { class: 'header' },
     el('div', { class: 'brand' },
       el('span', { class: 'brand-dot' }),
-      el('span', { class: 'brand-text' }, 'expense'),
+      el('span', { class: 'brand-text' }, 'kharchly'),
     ),
     el('div', { class: 'header-actions' },
       el('button', { class: 'icon-btn', 'aria-label': 'Settings', onClick: openSettings }, icon('settings', 16)),
@@ -77,7 +77,7 @@ function showInstallBanner() {
   if ($('.install-banner')) return;
   const banner = el('div', { class: 'install-banner' },
     el('div', { class: 'install-banner-text' },
-      'install expense',
+      'install kharchly',
       el('small', {}, 'works offline · adds to home screen'),
     ),
     el('button', {

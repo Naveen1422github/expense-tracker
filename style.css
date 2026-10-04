@@ -1040,3 +1040,16 @@ button.log-row { width: 100%; text-align: left; }
 .hbar-value { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
 .hbar.active .hbar-label { color: var(--accent); }
 .hbar.active .bar-fill { background: var(--accent); }
+
+/* ========== kharchly: budgets ========== */
+.budget-strip {
+  display: flex; flex-direction: column; gap: 10px; width: 100%; margin: 12px 0;
+  padding: 12px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 8px; text-align: left;
+}
+.budget-row { width: 100%; }
+.budget-top { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; font-size: 12px; }
+.budget-nums { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.budget-status { margin-top: 3px; font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+.budget-status.ahead { color: var(--warn); }
+.budget-status.over { color: var(--danger); }
+.budget-list-item { display: block; width: 100%; padding: 10px 0; border-bottom: 1px solid var(--border); text-align: left; }

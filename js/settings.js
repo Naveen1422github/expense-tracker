@@ -2,6 +2,7 @@
 import { el, openModal, toast } from './ui.js';
 import { store, view, rerender } from './ctx.js';
 import { openItemModal } from './spend.js';
+import { openBudgetsModal } from './budget-view.js';
 import { formatINR } from './money.js';
 import { todayKey } from './dates.js';
 
@@ -11,9 +12,10 @@ export function openSettings() {
       namedListSection('categories', 'category', () => store.state.categories, (rec) => store.saveCategory(rec), true),
       namedListSection('tags', 'tag', () => store.state.tags, (rec) => store.saveTag(rec), false),
       itemsSection(close),
+      budgetsSection(close),
       backupSection(),
       dangerSection(close),
-      el('div', { class: 'settings-info', style: { textAlign: 'center', marginTop: '16px' } }, 'expense · stored locally on your device'),
+      el('div', { class: 'settings-info', style: { textAlign: 'center', marginTop: '16px' } }, 'kharchly · stored locally on your device'),
     );
   });
 }
@@ -72,6 +74,17 @@ async function restoreItem(item) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
+function budgetsSection(closeSettings) {
+  return el('div', { class: 'settings-section' },
+    el('div', { class: 'settings-section-title' }, 'budgets'),
+    el('button', {
+      class: 'btn-ghost',
+      style: { width: '100%' },
+      onClick: () => { closeSettings(); openBudgetsModal(); },
+    }, `manage budgets (${store.state.budgets.length})`),
+  );
+}
+
 function backupSection() {
   return el('div', { class: 'settings-section' },
     el('div', { class: 'settings-section-title' }, 'backup'),
@@ -86,7 +99,7 @@ async function downloadJson() {
     const dump = await store.exportRaw();
     const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = el('a', { href: url, download: `expense-backup-${dump.exportedAt.slice(0, 10)}.json` });
+    const a = el('a', { href: url, download: `kharchly-backup-${dump.exportedAt.slice(0, 10)}.json` });
     document.body.appendChild(a);
     a.click();
     a.remove();

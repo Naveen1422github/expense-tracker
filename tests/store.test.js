@@ -263,3 +263,39 @@ test('loadRange loads months outside the boot window and filters by local day', 
   assert.equal(store.state.months.has('2025-02'), true);
   assert.equal(store.state.months.has('2025-01'), false);
 });
+
+// ---------- budgets (plan 4) ----------
+test('saveBudget validates scope, period, limit, target and duplicates', async () => {
+  const { store } = await fresh();
+  const food = catId(store, 'Food');
+  await assert.rejects(store.saveBudget({ scope: 'tag', period: 'month', limit: 100 }), /applies to/);
+  await assert.rejects(store.saveBudget({ scope: 'all', period: 'year', limit: 100 }), /day, week or month/);
+  await assert.rejects(store.saveBudget({ scope: 'all', period: 'month', limit: 0 }), /more than zero/);
+  await assert.rejects(store.saveBudget({ scope: 'category', refId: 'nope', period: 'month', limit: 100 }), /category/);
+  const b = await store.saveBudget({ scope: 'category', refId: food, period: 'month', limit: 500000 });
+  await assert.rejects(store.saveBudget({ scope: 'category', refId: food, period: 'month', limit: 1 }), /already/);
+  const all = await store.saveBudget({ scope: 'all', refId: 'ignored', period: 'day', limit: 60000 });
+  assert.equal(all.refId, null);
+  assert.equal(store.state.budgets.length, 2);
+  assert.equal((await store.saveBudget({ ...b, limit: 600000 })).limit, 600000); // editing itself is not a duplicate
+});
+
+test('budget warnings persist across reloads; deleting a budget clears its warning', async () => {
+  const { store, kv } = await fresh();
+  const b = await store.saveBudget({ scope: 'all', period: 'month', limit: 1000 });
+  await store.markBudgetWarned(b.id, '2026-10', 80);
+  const { store: again } = await fresh('2026-10-04T10:00', kv);
+  assert.deepEqual(again.state.meta.budgetWarnings[b.id], { periodKey: '2026-10', level: 80 });
+  assert.equal(again.state.budgets.length, 1);
+  await again.deleteBudget(b.id);
+  assert.equal(again.state.budgets.length, 0);
+  assert.equal(again.state.meta.budgetWarnings[b.id], undefined);
+});
+
+test('editing a budget clears its warning so a new limit can warn again', async () => {
+  const { store } = await fresh();
+  const b = await store.saveBudget({ scope: 'all', period: 'month', limit: 1000 });
+  await store.markBudgetWarned(b.id, '2026-10', 100);
+  await store.saveBudget({ ...b, limit: 5000 });
+  assert.equal(store.state.meta.budgetWarnings[b.id], undefined);
+});
