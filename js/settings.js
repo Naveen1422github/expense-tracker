@@ -4,7 +4,10 @@ import { store, view, rerender } from './ctx.js';
 import { openItemModal } from './spend.js';
 import { openBudgetsModal } from './budget-view.js';
 import { formatINR } from './money.js';
-import { todayKey } from './dates.js';
+import { todayKey, nowTs, monthKey } from './dates.js';
+import { SCHEMA_VERSION } from './store.js';
+import { validateBackup, daysSinceBackup, backupDue } from './export.js';
+import { buildSummary, buildMonthCsv, hasData, currentCounts } from './backup-files.js';
 
 export function openSettings() {
   openModal('settings', (body, close) => {
@@ -13,7 +16,7 @@ export function openSettings() {
       namedListSection('tags', 'tag', () => store.state.tags, (rec) => store.saveTag(rec), false),
       itemsSection(close),
       budgetsSection(close),
-      backupSection(),
+      backupSection(close),
       dangerSection(close),
       el('div', { class: 'settings-info', style: { textAlign: 'center', marginTop: '16px' } }, 'kharchly · stored locally on your device'),
     );
@@ -85,28 +88,117 @@ function budgetsSection(closeSettings) {
   );
 }
 
-function backupSection() {
+function backupSection(closeSettings) {
+  const days = daysSinceBackup(store.state.meta, nowTs());
+  const last = days === null ? 'never' : days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'} ago`;
+  const due = backupDue(store.state.meta, nowTs(), hasData());
   return el('div', { class: 'settings-section' },
     el('div', { class: 'settings-section-title' }, 'backup'),
-    el('button', { class: 'btn-ghost', style: { width: '100%' }, onClick: downloadJson }, 'download backup (json)'),
+    el('div', { class: 'settings-info' + (due ? ' warn-text' : '') }, `last backup: ${last}`),
+    el('div', { class: 'settings-btn-row' },
+      el('button', { class: 'btn-ghost', onClick: downloadJson }, 'backup (json)'),
+      el('button', { class: 'btn-ghost', onClick: () => pickRestore(closeSettings) }, 'restore'),
+    ),
+    el('div', { class: 'settings-btn-row' },
+      el('button', { class: 'btn-ghost', onClick: downloadSummary }, 'summary.md'),
+      el('button', { class: 'btn-ghost', onClick: downloadMonthCsv }, 'this month (csv)'),
+    ),
     el('div', { class: 'settings-info' },
-      'a full copy of your data. restore and google drive backup arrive in a later update — download one now and then until then.'),
+      'json = full copy you can restore. summary.md + csv = readable reports (for you, excel, or claude). google drive auto-backup comes next.'),
   );
+}
+
+function download(filename, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = el('a', { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function downloadJson() {
   try {
     const dump = await store.exportRaw();
-    const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = el('a', { href: url, download: `kharchly-backup-${dump.exportedAt.slice(0, 10)}.json` });
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    download(`kharchly-backup-${dump.exportedAt.slice(0, 10)}.json`, JSON.stringify(dump, null, 2), 'application/json');
+    await store.markBackedUp();
+    rerender();
     toast('backup downloaded', 'success');
   } catch (e) { toast(`backup failed: ${e.message}`, 'error'); }
 }
+
+async function downloadSummary() {
+  try {
+    download(`kharchly-summary-${todayKey()}.md`, await buildSummary(), 'text/markdown');
+  } catch (e) { toast(`summary failed: ${e.message}`, 'error'); }
+}
+
+async function downloadMonthCsv() {
+  try {
+    const mk = monthKey(todayKey());
+    download(`spend-${mk}.csv`, await buildMonthCsv(mk), 'text/csv');
+  } catch (e) { toast(`csv failed: ${e.message}`, 'error'); }
+}
+
+// restore: pick file -> parse -> validate -> confirm with counts -> replace everything
+function pickRestore(closeSettings) {
+  const input = el('input', { type: 'file', accept: 'application/json,.json' });
+  input.style.display = 'none';
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    input.remove();
+    if (!file) return;
+    try {
+      let dump;
+      try { dump = JSON.parse(await file.text()); } catch { throw new Error('Not a valid backup: not a JSON file'); }
+      const { counts } = validateBackup(dump, SCHEMA_VERSION);
+      closeSettings();
+      confirmRestore(dump, counts, await currentCounts());
+    } catch (e) { toast(e.message, 'error'); }
+  });
+  document.body.appendChild(input);
+  input.click();
+}
+
+const describe = (c) => (c
+  ? `${c.expenses} expenses · ${c.items} items · ${c.people} people · ${c.budgets} budgets`
+  : 'unknown');
+
+function confirmRestore(dump, incoming, current) {
+  openModal('restore backup', (body, close) => {
+    let armed = false;
+    const go = el('button', {
+      class: 'btn-danger-ghost',
+      onClick: async () => {
+        if (!armed) {
+          armed = true;
+          go.textContent = 'tap again to replace everything';
+          return;
+        }
+        try {
+          await store.importRaw(dump);
+          view.day = todayKey();
+          view.chip = 'all';
+          view.search = '';
+          close();
+          rerender();
+          toast('backup restored', 'success');
+        } catch (e) { toast(e.message, 'error'); }
+      },
+    }, 'replace everything');
+    body.append(
+      el('div', { class: 'settings-info' }, `backup from ${String(dump.exportedAt || '?').replace('T', ' ')}`),
+      el('div', { class: 'settings-info' }, `in the backup: ${describe(incoming)}`),
+      el('div', { class: 'settings-info' }, `on this phone now: ${describe(current)}`),
+      el('div', { class: 'settings-info warn-text' }, 'restoring replaces everything on this phone with the backup.'),
+      el('div', { class: 'modal-actions' },
+        el('button', { class: 'btn-ghost', onClick: close }, 'cancel'),
+        go,
+      ),
+    );
+  });
+}
+
 
 // two-tap erase (no confirm() dialogs)
 function dangerSection(closeSettings) {

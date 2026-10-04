@@ -299,3 +299,44 @@ test('editing a budget clears its warning so a new limit can warn again', async 
   await store.saveBudget({ ...b, limit: 5000 });
   assert.equal(store.state.meta.budgetWarnings[b.id], undefined);
 });
+
+// ---------- backup / restore (plan 5) ----------
+test("importRaw restores another store's export, marks everything dirty, keeps this device's drive state", async () => {
+  const { store: a } = await fresh();
+  const item = await a.saveItem({ name: 'Chai', price: 1500, categoryId: catId(a, 'Food') });
+  await a.logItem(item, { ts: '2026-09-15T08:00' });
+  const p = await a.savePerson({ name: 'Puru' });
+  await a.addLedger({ personId: p.id, kind: 'lent', amount: 50000 });
+  const dump = await a.exportRaw();
+
+  const { store: b, kv: kvB } = await fresh();
+  await kvB.set('meta', { ...b.state.meta, drive: { connected: true, folderId: 'F', fileIds: {} } });
+  await b.boot();
+  await b.logSpend({ name: 'Will be replaced', categoryId: catId(b, 'Food'), amount: 100 });
+  await b.importRaw(dump);
+
+  assert.deepEqual(b.state.items.map((i) => i.name), ['Chai']);
+  assert.deepEqual((await kvB.get('spend:2026-09')).map((e) => e.name), ['Chai']);
+  assert.equal(await kvB.get('spend:2026-10'), null);
+  assert.equal(b.state.ledger.length, 1);
+  assert.deepEqual(b.state.meta.dirtyMonths, ['2026-09']);
+  assert.equal(b.state.meta.dirtyPeople, true);
+  assert.equal(b.state.meta.drive.folderId, 'F');
+  assert.equal(b.state.meta.lastBackupAt, '2026-10-04T10:00');
+});
+
+test('importRaw rejects an invalid backup and changes nothing', async () => {
+  const { store } = await fresh();
+  await store.logSpend({ name: 'Keep me', categoryId: catId(store, 'Food'), amount: 100 });
+  const before = await store.exportRaw();
+  await assert.rejects(store.importRaw({ app: 'expense-tracker', schemaVersion: 1, data: { meta: {}, categories: [] } }), /Not a valid backup/);
+  assert.deepEqual(await store.exportRaw(), before);
+  assert.equal(store.monthEntries('2026-10').length, 1);
+});
+
+test('markBackedUp records the time and survives a reload', async () => {
+  const { store, kv } = await fresh();
+  await store.markBackedUp();
+  const { store: again } = await fresh('2026-10-05T09:00', kv);
+  assert.equal(again.state.meta.lastBackupAt, '2026-10-04T10:00');
+});

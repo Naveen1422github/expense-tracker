@@ -4,6 +4,7 @@
 import { nowTs, monthKey, dayKey, addMonths, monthsBetween } from './dates.js';
 import { KINDS } from './ledger.js';
 import { SCOPES, PERIODS } from './budgets.js';
+import { validateBackup } from './export.js';
 
 export const SCHEMA_VERSION = 1;
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -366,6 +367,46 @@ export function createStore(kv, { now = nowTs, makeId = uid } = {}) {
     await boot();
   }
 
+  // replace EVERYTHING with a backup. validated first, so a bad file never touches the phone.
+  // keeps this device's drive link; marks every month dirty so a connected drive re-uploads.
+  async function importRaw(dump) {
+    validateBackup(dump, SCHEMA_VERSION);
+    const d = dump.data;
+    const monthKeys = Object.keys(d).filter((k) => k.startsWith('spend:'));
+    const meta = {
+      ...defaultMeta(),
+      ...d.meta,
+      schemaVersion: SCHEMA_VERSION,
+      drive: state.meta.drive,
+      dirtyMonths: monthKeys.map((k) => k.slice('spend:'.length)).sort(),
+      dirtyPeople: true,
+      lastBackupAt: now(),
+    };
+    const before = (await exportRaw()).data;
+    try {
+      for (const k of await kv.keys('')) await kv.del(k);
+      for (const k of ['categories', 'tags', 'items', 'people', 'ledger', 'budgets', ...monthKeys]) {
+        if (d[k] !== undefined) await kv.set(k, d[k]);
+      }
+      await kv.set(K.meta, meta);
+    } catch (err) {
+      // best effort: put the previous data back before reporting the failure
+      try {
+        for (const k of await kv.keys('')) await kv.del(k);
+        for (const [k, v] of Object.entries(before)) await kv.set(k, v);
+      } catch { /* nothing more we can do */ }
+      await boot();
+      throw err;
+    }
+    await boot();
+  }
+
+  async function markBackedUp() {
+    const meta = { ...state.meta, lastBackupAt: now() };
+    await kv.set(K.meta, meta);
+    state.meta = meta;
+  }
+
   // every public mutator runs one at a time. without this, two fast taps both read the
   // same month array while the first idb write is pending, and the second write drops the first entry.
   // internal calls (logItem -> logSpend, wipe -> boot) use the raw functions, so the queue never waits on itself.
@@ -403,5 +444,7 @@ export function createStore(kv, { now = nowTs, makeId = uid } = {}) {
     entriesForDay, monthEntries, loadedEntries, loadRange,
     exportRaw,
     wipe: serial(wipe),
+    importRaw: serial(importRaw),
+    markBackedUp: serial(markBackedUp),
   };
 }

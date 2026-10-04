@@ -5,6 +5,9 @@ import { renderSpend } from './spend.js';
 import { renderPeople } from './people.js';
 import { renderReports } from './reports.js';
 import { openSettings } from './settings.js';
+import { backupDue } from './export.js';
+import { hasData } from './backup-files.js';
+import { nowTs } from './dates.js';
 
 const TABS = ['spend', 'people', 'reports'];
 
@@ -38,7 +41,12 @@ function renderHeader() {
       el('span', { class: 'brand-text' }, 'kharchly'),
     ),
     el('div', { class: 'header-actions' },
-      el('button', { class: 'icon-btn', 'aria-label': 'Settings', onClick: openSettings }, icon('settings', 16)),
+      el('button', {
+        // dot = backup due (never backed up, or more than 14 days ago, once there is data)
+        class: 'icon-btn' + (backupDue(store.state.meta, nowTs(), hasData()) ? ' has-dot' : ''),
+        'aria-label': 'Settings',
+        onClick: openSettings,
+      }, icon('settings', 16)),
     ),
   );
 }

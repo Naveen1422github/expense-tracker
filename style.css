@@ -1053,3 +1053,11 @@ button.log-row { width: 100%; text-align: left; }
 .budget-status.ahead { color: var(--warn); }
 .budget-status.over { color: var(--danger); }
 .budget-list-item { display: block; width: 100%; padding: 10px 0; border-bottom: 1px solid var(--border); text-align: left; }
+
+/* ========== kharchly: backup ========== */
+.icon-btn.has-dot { position: relative; }
+.icon-btn.has-dot::after {
+  content: ''; position: absolute; top: 4px; right: 4px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--warn);
+}
+.warn-text { color: var(--warn); }
