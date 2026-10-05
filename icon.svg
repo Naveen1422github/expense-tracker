@@ -1,5 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0f0f0e"/>
-  <circle cx="256" cy="256" r="40" fill="#7fb069"/>
-  <text x="256" y="380" text-anchor="middle" font-family="ui-monospace, SF Mono, Menlo, monospace" font-size="68" font-weight="500" letter-spacing="6" fill="#e8e6df">MACRO</text>
+  <rect width="512" height="512" rx="112" fill="#0f0f0e"/>
+  <g fill="none" stroke="#e8e6df" stroke-width="60" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M190 128 V384"/><path d="M318 220 L200 310"/><path d="M250 274 L326 384"/>
+  </g>
+  <circle cx="352" cy="148" r="34" fill="#7fb069"/>
 </svg>

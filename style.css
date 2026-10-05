@@ -853,6 +853,25 @@ input[type=number] { -moz-appearance: textfield; }
   text-transform: uppercase;
 }
 
+/* ========== help ========== */
+.help-card {
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.help-card-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.help-card-line { font-size: 13px; color: var(--text); line-height: 1.5; }
+.help-card-line + .help-card-line { margin-top: 2px; }
+
 /* ========== settings ========== */
 .settings-section {
   margin-bottom: 20px;
