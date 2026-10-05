@@ -8,6 +8,8 @@ import { todayKey, nowTs, monthKey } from './dates.js';
 import { SCHEMA_VERSION } from './store.js';
 import { validateBackup, daysSinceBackup, backupDue } from './export.js';
 import { buildSummary, buildMonthCsv, hasData, currentCounts } from './backup-files.js';
+import { confirmRestore } from './restore-view.js';
+import { renderDriveSection } from './drive.js';
 
 export function openSettings() {
   openModal('settings', (body, close) => {
@@ -16,6 +18,7 @@ export function openSettings() {
       namedListSection('tags', 'tag', () => store.state.tags, (rec) => store.saveTag(rec), false),
       itemsSection(close),
       budgetsSection(close),
+      renderDriveSection(close),
       backupSection(close),
       dangerSection(close),
       el('div', { class: 'settings-info', style: { textAlign: 'center', marginTop: '16px' } }, 'kharchly · stored locally on your device'),
@@ -104,7 +107,7 @@ function backupSection(closeSettings) {
       el('button', { class: 'btn-ghost', onClick: downloadMonthCsv }, 'this month (csv)'),
     ),
     el('div', { class: 'settings-info' },
-      'json = full copy you can restore. summary.md + csv = readable reports (for you, excel, or claude). google drive auto-backup comes next.'),
+      'json = full copy you can restore. summary.md + csv = readable reports (for you, excel, or claude). for automatic backups, connect google drive above.'),
   );
 }
 
@@ -159,46 +162,6 @@ function pickRestore(closeSettings) {
   document.body.appendChild(input);
   input.click();
 }
-
-const describe = (c) => (c
-  ? `${c.expenses} expenses · ${c.items} items · ${c.people} people · ${c.budgets} budgets`
-  : 'unknown');
-
-function confirmRestore(dump, incoming, current) {
-  openModal('restore backup', (body, close) => {
-    let armed = false;
-    const go = el('button', {
-      class: 'btn-danger-ghost',
-      onClick: async () => {
-        if (!armed) {
-          armed = true;
-          go.textContent = 'tap again to replace everything';
-          return;
-        }
-        try {
-          await store.importRaw(dump);
-          view.day = todayKey();
-          view.chip = 'all';
-          view.search = '';
-          close();
-          rerender();
-          toast('backup restored', 'success');
-        } catch (e) { toast(e.message, 'error'); }
-      },
-    }, 'replace everything');
-    body.append(
-      el('div', { class: 'settings-info' }, `backup from ${String(dump.exportedAt || '?').replace('T', ' ')}`),
-      el('div', { class: 'settings-info' }, `in the backup: ${describe(incoming)}`),
-      el('div', { class: 'settings-info' }, `on this phone now: ${describe(current)}`),
-      el('div', { class: 'settings-info warn-text' }, 'restoring replaces everything on this phone with the backup.'),
-      el('div', { class: 'modal-actions' },
-        el('button', { class: 'btn-ghost', onClick: close }, 'cancel'),
-        go,
-      ),
-    );
-  });
-}
-
 
 // two-tap erase (no confirm() dialogs)
 function dangerSection(closeSettings) {

@@ -99,7 +99,7 @@ The one client ID serves every user. Each person signs in with their own Google 
 | `tests/drive-api.test.js` | **create** (7 tests, fake Drive) | 1 |
 | `js/store.js` | **modify**: `subscribe`/`changeSeq`, `setDrive`, `clearDirty`, `markAllDirty` | 2 |
 | `tests/store.test.js` | **modify**: append 4 tests | 2 |
-| `js/config.js` | **create**: `GOOGLE_CLIENT_ID` | 3 |
+| `js/config.js` | **already exists** (415b44a) with the real `GOOGLE_CLIENT_ID`. Do NOT overwrite it with `''`; just add it to SW `ASSETS` | 3 |
 | `js/restore-view.js` | **create**: `confirmRestore` moved out of settings.js (+ `afterRestore`) | 3 |
 | `js/drive.js` | **create**: GIS sign-in, triggers, status, Settings section | 3 |
 | `js/settings.js` | **modify**: use restore-view + Drive section | 3 |
@@ -562,14 +562,7 @@ Run: `node --test`. Expected: PASS, 97 tests (money 6, dates 8, frecency 7, stor
     - `driveNeedsSignIn() → boolean`
     - `renderDriveSection(closeSettings) → HTMLElement`
 
-- [ ] **Step 1: Create `js/config.js`**
-
-```js
-// one-time google setup: see README.md → "google drive setup".
-// the oauth client id is public (it is visible in every web app that uses google sign-in); safe to commit.
-// leave it empty and the drive section in settings just says setup is needed.
-export const GOOGLE_CLIENT_ID = '';
-```
+- [ ] **Step 1: `js/config.js` ALREADY EXISTS** (commit 415b44a) with the real client id. **Do not touch it.** For reference, its shape is `export const GOOGLE_CLIENT_ID = '….apps.googleusercontent.com';`.
 
 - [ ] **Step 2: Create `js/restore-view.js`.** This is the restore confirmation moved out of settings.js, plus an `afterRestore` hook.
 
@@ -954,7 +947,7 @@ with:
   initDrive(); // after the first render: drive status can only re-render an existing screen
 ```
 
-- [ ] **Step 6: `sw.js`.** Replace `const CACHE_NAME = 'kharchly-v7';` with `const CACHE_NAME = 'kharchly-v8';`. In `ASSETS`, after `  './js/backup-files.js',` add:
+- [ ] **Step 6: `sw.js`.** Replace `const CACHE_NAME = 'kharchly-v8';` with `const CACHE_NAME = 'kharchly-v9';` (Plan 7 already used v8). In `ASSETS`, after `  './icon-512.png',` add `  './privacy.html',`. After `  './js/backup-files.js',` add:
 ```js
   './js/config.js',
   './js/restore-view.js',
@@ -1000,11 +993,21 @@ Backups land in a `Kharchly/` folder in your Drive: `summary.md` (read this firs
 `docs/spec.md` (design) and `docs/plan-*.md` (implementation plans, in order).
 ````
 
+- [ ] **Step 7b: Create `privacy.html`** at the site root. Use a standalone page with inline styles matching the app (dark `#0f0f0e` background, `#e8e6df` text, `#7fb069` headings, system font, max-width 640px, 16px padding, `<meta name="viewport">`). Write it in plain English with no legalese. Title: "kharchly · privacy". Include a "back to the app" link to `./`. Content, with one short paragraph or bullet list each:
+  - **What kharchly stores:** your expenses, people and budgets. They are stored only on your device (browser storage).
+  - **Google Drive (optional):** if you connect it, kharchly saves backup files into a `Kharchly` folder in **your own** Google Drive. It uses Google's `drive.file` permission, so it can see only the files it created, and nothing else in your Drive.
+  - **What we don't do:** there is no kharchly server, account, analytics, ads or tracking, and data is never shared with anyone. The developer cannot see your data.
+  - **Disconnecting:** Settings → google drive → disconnect, or Google Account → Security → third-party connections → kharchly → remove access. Deleting the `Kharchly` folder removes the backups.
+  - **Contact:** leave the literal placeholder `CONTACT_EMAIL_HERE`; the user fills it in before publishing
+  - **Last updated:** 2026-10-05
+
+- [ ] **Step 7c: Help card (Plan 7 hook).** In `js/help.js`, in the `keep it safe` card, replace the line `'settings → backup every couple of weeks (the dot reminds you).'` with `'settings → google drive: backs up by itself once connected.'`. Keep the line under 90 characters (`tests/help.test.js` enforces it).
+
 - [ ] **Step 8: Syntax check and suite**
 
 Run: `node --check js/config.js && node --check js/restore-view.js && node --check js/drive.js && node --check js/settings.js && node --check js/app.js && node --check sw.js`. Expected: no output.
-Check that every `js/*.js` file appears in `sw.js` ASSETS (24 files).
-Run: `node --test`. Expected: PASS, 97 tests.
+Check that every `js/*.js` file appears in `sw.js` ASSETS (25 files, which includes Plan 7's `help.js`).
+Run: `node --test`. Expected: PASS, 99 tests (97 from this plan's count plus Plan 7's 2).
 
 - [ ] **Step 9: Manual check (the user, after the Google setup and a deploy)**
   1. **Before setup** (empty client id): Settings → google drive says setup is needed. Nothing else changes and there are no console errors.

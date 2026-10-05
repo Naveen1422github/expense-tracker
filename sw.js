@@ -1,7 +1,7 @@
 // kharchly service worker — network-first, cache as offline fallback.
 // bump CACHE_NAME on every deploy. ASSETS must list EVERY js module:
 // a module missing from cache must fail as missing, never be answered with index.html.
-const CACHE_NAME = 'kharchly-v8';
+const CACHE_NAME = 'kharchly-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const ASSETS = [
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
+  './privacy.html',
   './js/app.js',
   './js/ctx.js',
   './js/db.js',
@@ -27,6 +28,10 @@ const ASSETS = [
   './js/budget-view.js',
   './js/export.js',
   './js/backup-files.js',
+  './js/config.js',
+  './js/restore-view.js',
+  './js/drive-api.js',
+  './js/drive.js',
   './js/store.js',
   './js/spend.js',
   './js/settings.js',

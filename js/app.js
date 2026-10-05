@@ -9,6 +9,7 @@ import { openHelp, shareApp } from './help.js';
 import { backupDue } from './export.js';
 import { hasData } from './backup-files.js';
 import { nowTs } from './dates.js';
+import { initDrive, driveNeedsSignIn } from './drive.js';
 
 const TABS = ['spend', 'people', 'reports'];
 
@@ -46,7 +47,7 @@ function renderHeader() {
       el('button', { class: 'icon-btn', 'aria-label': 'How to use', onClick: openHelp }, icon('help', 16)),
       el('button', {
         // dot = backup due (never backed up, or more than 14 days ago, once there is data)
-        class: 'icon-btn' + (backupDue(store.state.meta, nowTs(), hasData()) ? ' has-dot' : ''),
+        class: 'icon-btn' + (backupDue(store.state.meta, nowTs(), hasData()) || driveNeedsSignIn() ? ' has-dot' : ''),
         'aria-label': 'Settings',
         onClick: openSettings,
       }, icon('settings', 16)),
@@ -119,6 +120,7 @@ async function start() {
   try { await navigator.storage?.persist?.(); } catch { /* not supported — fine */ }
   await store.boot();
   render();
+  initDrive(); // after the first render: drive status can only re-render an existing screen
 }
 
 start().catch((err) => {

@@ -2,6 +2,7 @@
 import { el, openModal, toast } from './ui.js';
 
 export const APP_URL = 'https://kharchly.netlify.app/';
+export const FEEDBACK_EMAIL = 'prajapatinaveen279@gmail.com';
 
 // the user manual. keep each card to a title + at most 3 short lines (tests enforce it).
 // only describe what the app really does.
@@ -33,7 +34,7 @@ export const HELP_CARDS = [
   ] },
   { title: 'keep it safe', lines: [
     'your data lives only on this phone.',
-    'settings → backup every couple of weeks (the dot reminds you).',
+    'settings → google drive: backs up by itself once connected.',
     'new phone? settings → restore that file.',
   ] },
   { title: 'put it on your home screen', lines: [
@@ -52,6 +53,11 @@ export function openHelp() {
     }
     body.appendChild(el('button', { class: 'btn-ghost', style: { width: '100%', marginTop: '8px' }, onClick: shareApp },
       'share kharchly with someone'));
+    // opens the phone's mail app with the subject filled in — ideas, bugs, anything.
+    body.appendChild(el('button', {
+      class: 'btn-ghost', style: { width: '100%', marginTop: '8px' },
+      onClick: () => { location.href = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('kharchly feedback')}`; },
+    }, 'send feedback'));
   });
 }
 

@@ -340,3 +340,52 @@ test('markBackedUp records the time and survives a reload', async () => {
   const { store: again } = await fresh('2026-10-05T09:00', kv);
   assert.equal(again.state.meta.lastBackupAt, '2026-10-04T10:00');
 });
+
+// ---------- drive bookkeeping (plan 6) ----------
+test('subscribers hear successful data changes only, and changeSeq counts them', async () => {
+  const { store } = await fresh();
+  let heard = 0;
+  store.subscribe(() => { heard++; });
+  const s0 = store.changeSeq();
+  await store.logSpend({ name: 'Chai', categoryId: catId(store, 'Food'), amount: 1500 });
+  await store.savePerson({ name: 'Puru' });
+  await store.markBackedUp();
+  await store.setDrive({ connected: true, folderId: 'F', fileIds: {} });
+  assert.equal(heard, 2);
+  assert.equal(store.changeSeq(), s0 + 2);
+  await assert.rejects(store.logSpend({ name: '', categoryId: 'x', amount: 1 }));
+  assert.equal(heard, 2); // a rejected write is not a change
+});
+
+test('clearDirty clears exactly what was uploaded, unless something changed meanwhile', async () => {
+  const { store } = await fresh();
+  const food = catId(store, 'Food');
+  await store.logSpend({ name: 'A', categoryId: food, amount: 100, ts: '2026-09-10T10:00' });
+  await store.logSpend({ name: 'B', categoryId: food, amount: 100, ts: '2026-10-01T10:00' });
+  await store.savePerson({ name: 'Puru' });
+  const seq = store.changeSeq();
+  await store.logSpend({ name: 'C', categoryId: food, amount: 100 }); // lands mid-upload
+  assert.equal(await store.clearDirty(['2026-09', '2026-10'], true, seq), false);
+  assert.deepEqual(store.state.meta.dirtyMonths, ['2026-09', '2026-10']);
+  assert.equal(await store.clearDirty(['2026-09'], true, store.changeSeq()), true);
+  assert.deepEqual(store.state.meta.dirtyMonths, ['2026-10']);
+  assert.equal(store.state.meta.dirtyPeople, false);
+});
+
+test('markAllDirty marks every stored month and people', async () => {
+  const { store } = await fresh();
+  const food = catId(store, 'Food');
+  await store.logSpend({ name: 'A', categoryId: food, amount: 100, ts: '2025-01-10T10:00' });
+  await store.logSpend({ name: 'B', categoryId: food, amount: 100, ts: '2026-10-01T10:00' });
+  await store.clearDirty(['2025-01', '2026-10'], true, store.changeSeq());
+  await store.markAllDirty();
+  assert.deepEqual(store.state.meta.dirtyMonths, ['2025-01', '2026-10']);
+  assert.equal(store.state.meta.dirtyPeople, true);
+});
+
+test('setDrive persists across reloads', async () => {
+  const { store, kv } = await fresh();
+  await store.setDrive({ connected: true, folderId: 'F', fileIds: { 'summary.md': 'S' } });
+  const { store: again } = await fresh('2026-10-04T10:00', kv);
+  assert.deepEqual(again.state.meta.drive, { connected: true, folderId: 'F', fileIds: { 'summary.md': 'S' } });
+});

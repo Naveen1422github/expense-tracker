@@ -407,6 +407,37 @@ export function createStore(kv, { now = nowTs, makeId = uid } = {}) {
     state.meta = meta;
   }
 
+  // ---------- drive bookkeeping (meta only: these never notify) ----------
+  async function setDrive(drive) {
+    const meta = { ...state.meta, drive };
+    await kv.set(K.meta, meta);
+    state.meta = meta;
+  }
+
+  // clear exactly what an upload sent — unless data changed while it ran (then the next backup re-sends)
+  async function clearDirty(months, people, seqAtStart) {
+    if (seq !== seqAtStart) return false;
+    const meta = {
+      ...state.meta,
+      dirtyMonths: state.meta.dirtyMonths.filter((m) => !months.includes(m)),
+      dirtyPeople: people ? false : state.meta.dirtyPeople,
+    };
+    await kv.set(K.meta, meta);
+    state.meta = meta;
+    return true;
+  }
+
+  async function markAllDirty() {
+    const meta = { ...state.meta, dirtyMonths: await spendMonthKeys(), dirtyPeople: true };
+    await kv.set(K.meta, meta);
+    state.meta = meta;
+  }
+
+  // ---------- change notifications ----------
+  let seq = 0;
+  const listeners = new Set();
+  const subscribe = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
+
   // every public mutator runs one at a time. without this, two fast taps both read the
   // same month array while the first idb write is pending, and the second write drops the first entry.
   // internal calls (logItem -> logSpend, wipe -> boot) use the raw functions, so the queue never waits on itself.
@@ -416,35 +447,47 @@ export function createStore(kv, { now = nowTs, makeId = uid } = {}) {
     tail = run.catch(() => {});
     return run;
   };
+  // data mutators: serialized, and after a SUCCESSFUL run bump the change counter and notify
+  const data = (fn) => serial(async (...args) => {
+    const result = await fn(...args);
+    seq += 1;
+    for (const l of listeners) { try { l(); } catch { /* a listener must never break a write */ } }
+    return result;
+  });
 
   return {
     state,
     boot: serial(boot),
     ensureMonth,
-    saveCategory: serial(saveCategory),
-    saveTag: serial(saveTag),
-    saveItem: serial(saveItem),
-    deleteItem: serial(deleteItem),
+    saveCategory: data(saveCategory),
+    saveTag: data(saveTag),
+    saveItem: data(saveItem),
+    deleteItem: data(deleteItem),
     isItemUsed,
-    applyItemToPast: serial(applyItemToPast),
-    logSpend: serial(logSpend),
-    logItem: serial(logItem),
-    updateSpend: serial(updateSpend),
-    deleteSpend: serial(deleteSpend),
-    restoreSpend: serial(restoreSpend),
-    savePerson: serial(savePerson),
-    deletePerson: serial(deletePerson),
-    addLedger: serial(addLedger),
-    updateLedger: serial(updateLedger),
-    deleteLedger: serial(deleteLedger),
-    restoreLedger: serial(restoreLedger),
-    saveBudget: serial(saveBudget),
-    deleteBudget: serial(deleteBudget),
+    applyItemToPast: data(applyItemToPast),
+    logSpend: data(logSpend),
+    logItem: data(logItem),
+    updateSpend: data(updateSpend),
+    deleteSpend: data(deleteSpend),
+    restoreSpend: data(restoreSpend),
+    savePerson: data(savePerson),
+    deletePerson: data(deletePerson),
+    addLedger: data(addLedger),
+    updateLedger: data(updateLedger),
+    deleteLedger: data(deleteLedger),
+    restoreLedger: data(restoreLedger),
+    saveBudget: data(saveBudget),
+    deleteBudget: data(deleteBudget),
     markBudgetWarned: serial(markBudgetWarned),
     entriesForDay, monthEntries, loadedEntries, loadRange,
     exportRaw,
-    wipe: serial(wipe),
-    importRaw: serial(importRaw),
+    wipe: data(wipe),
+    importRaw: data(importRaw),
     markBackedUp: serial(markBackedUp),
+    setDrive: serial(setDrive),
+    clearDirty: serial(clearDirty),
+    markAllDirty: serial(markAllDirty),
+    subscribe,
+    changeSeq: () => seq,
   };
 }
