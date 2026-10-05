@@ -1,4 +1,5 @@
 // settings — manage categories / tags / items, download a backup, erase everything.
+import { openStarterPicker } from './starter-view.js';
 import { el, openModal, toast } from './ui.js';
 import { store, view, rerender } from './ctx.js';
 import { openItemModal } from './spend.js';
@@ -70,6 +71,7 @@ function itemsSection(closeSettings) {
       el('span', { class: 'settings-item-price' }, formatINR(item.price)),
     ));
   }
+  sec.appendChild(el('button', { class: 'link-btn', style: { marginTop: '8px' }, onClick: () => { closeSettings(); openStarterPicker(); } }, '+ add common items'));
   return sec;
 }
 

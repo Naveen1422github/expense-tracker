@@ -853,6 +853,24 @@ input[type=number] { -moz-appearance: textfield; }
   text-transform: uppercase;
 }
 
+/* ========== onboarding ========== */
+.starter-chips { flex-wrap: wrap; overflow: visible; }
+.starter-price-row .field { margin-bottom: 8px; }
+.tip-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--accent-dim);
+  border-radius: 8px;
+}
+.tip-banner .link-btn { flex-shrink: 0; }
+
 /* ========== help ========== */
 .help-card {
   padding: 12px 14px;

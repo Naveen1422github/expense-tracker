@@ -10,6 +10,7 @@ import { backupDue } from './export.js';
 import { hasData } from './backup-files.js';
 import { nowTs } from './dates.js';
 import { initDrive, driveNeedsSignIn } from './drive.js';
+import { openStarterPicker, starterSeen } from './starter-view.js';
 
 const TABS = ['spend', 'people', 'reports'];
 
@@ -121,6 +122,8 @@ async function start() {
   await store.boot();
   render();
   initDrive(); // after the first render: drive status can only re-render an existing screen
+  // first open with nothing set up: offer the starter picker once
+  if (!store.state.items.length && !starterSeen()) openStarterPicker({ firstRun: true });
 }
 
 start().catch((err) => {

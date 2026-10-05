@@ -6,6 +6,8 @@ import { nowTs, todayKey, dayKey, monthKey, timeOf, joinTs, addDays, formatDayLa
 import { rankItems } from './frecency.js';
 import { textField, noteField, amountField, categoryField, tagToggles, dateTimeFields } from './fields.js';
 import { renderBudgetStrip, takeBudgetNote, withNote } from './budget-view.js';
+import { openStarterPicker } from './starter-view.js';
+import { nextTip, seenTips, markTipSeen } from './tips.js';
 
 const TOP_N = 12;
 const sum = (list) => list.reduce((s, e) => s + e.amount, 0);
@@ -43,6 +45,7 @@ export function renderSpend() {
   attachSwipe(chips, () => {}, { stopProp: true });
   pad.append(
     renderTotals(),
+    ...renderTip(),
     renderBudgetStrip(),
     renderSearch(refresh),
     chips,
@@ -52,6 +55,16 @@ export function renderSpend() {
   );
   refresh();
   return pad;
+}
+
+// one-time tip, inline (a toast would clobber the undo toast). returns [] or [node] for spreading.
+function renderTip() {
+  const tip = nextTip({ logs: store.loadedEntries().length }, seenTips());
+  if (!tip) return [];
+  return [el('div', { class: 'tip-banner' },
+    el('span', {}, tip.text),
+    el('button', { class: 'link-btn', onClick: () => { markTipSeen(tip.key); rerender(); } }, 'got it'),
+  )];
 }
 
 function renderTotals() {
@@ -125,9 +138,13 @@ function fillGrid(grid) {
   const items = visibleItems();
   if (!items.length) {
     const q = view.search.trim();
+    const none = !store.state.items.length;
     grid.appendChild(el('div', { class: 'empty' },
       el('div', { class: 'empty-text' },
-        store.state.items.length ? 'no matching items' : 'no items yet — add the things you buy often'),
+        none ? 'no items yet — pick things you buy often, then one tap logs them' : 'no matching items'),
+      none && !q
+        ? el('button', { class: 'link-btn', onClick: () => openStarterPicker() }, 'pick common items')
+        : null,
       el('button', { class: 'link-btn', onClick: () => openItemModal(null, { name: q }) },
         q ? `+ add "${q}"` : '+ new item'),
     ));
