@@ -21,7 +21,8 @@ export function openSettings() {
       renderDriveSection(close),
       backupSection(close),
       dangerSection(close),
-      el('div', { class: 'settings-info', style: { textAlign: 'center', marginTop: '16px' } }, 'kharchly · stored locally on your device'),
+      el('div', { class: 'settings-info', style: { textAlign: 'center', marginTop: '16px' } }, 'kharchly · stored locally on your device · ',
+        el('a', { href: 'privacy.html', target: '_blank', rel: 'noopener', style: { color: 'inherit' } }, 'privacy')),
     );
   });
 }

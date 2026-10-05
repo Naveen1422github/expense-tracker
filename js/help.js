@@ -58,6 +58,8 @@ export function openHelp() {
       class: 'btn-ghost', style: { width: '100%', marginTop: '8px' },
       onClick: () => { location.href = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('kharchly feedback')}`; },
     }, 'send feedback'));
+    body.appendChild(el('div', { class: 'settings-info', style: { textAlign: 'center', marginTop: '12px' } },
+      el('a', { href: 'privacy.html', target: '_blank', rel: 'noopener', style: { color: 'inherit' } }, 'privacy policy')));
   });
 }
 
