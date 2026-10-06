@@ -7,9 +7,7 @@ import { rankItems } from './frecency.js';
 import { textField, noteField, amountField, categoryField, tagToggles, dateTimeFields } from './fields.js';
 import { renderBudgetStrip, takeBudgetNote, withNote } from './budget-view.js';
 import { openStarterPicker } from './starter-view.js';
-import { nextTip, seenTips, markTipSeen } from './tips.js';
 
-const TOP_N = 12;
 const sum = (list) => list.reduce((s, e) => s + e.amount, 0);
 const catName = (id) => store.state.categories.find((c) => c.id === id)?.name || '—';
 const tagName = (id) => store.state.tags.find((t) => t.id === id)?.name || '';
@@ -45,7 +43,6 @@ export function renderSpend() {
   attachSwipe(chips, () => {}, { stopProp: true });
   pad.append(
     renderTotals(),
-    ...renderTip(),
     renderBudgetStrip(),
     renderSearch(refresh),
     chips,
@@ -55,16 +52,6 @@ export function renderSpend() {
   );
   refresh();
   return pad;
-}
-
-// one-time tip, inline (a toast would clobber the undo toast). returns [] or [node] for spreading.
-function renderTip() {
-  const tip = nextTip({ logs: store.loadedEntries().length }, seenTips());
-  if (!tip) return [];
-  return [el('div', { class: 'tip-banner' },
-    el('span', {}, tip.text),
-    el('button', { class: 'link-btn', onClick: () => { markTipSeen(tip.key); rerender(); } }, 'got it'),
-  )];
 }
 
 function renderTotals() {
@@ -130,7 +117,7 @@ function visibleItems() {
       [i.name, catName(i.categoryId), ...i.tagIds.map(tagName)].some((s) => s.toLowerCase().includes(q)));
   }
   const ranked = rankItems(items, store.loadedEntries(), Date.now());
-  return q || view.chip !== 'all' ? ranked : ranked.slice(0, TOP_N);
+  return ranked;
 }
 
 function fillGrid(grid) {

@@ -118,7 +118,7 @@ The stored `amount` is always positive. The sign comes from `kind`, and only fro
 - **Search box:** matches item name, category name, or tag name.
 - **Category chips:** `All` plus every non-archived category.
 - **Item grid:**
-  - With no search and `All` selected, it shows the **top 12 by frecency**.
+  - With no search and `All` selected, it shows **all** items by frecency; the grid shows 4 rows and scrolls inside (changed 2026-10-06, was top 12).
   - With a search or a chip active, it shows **all** matching items, ordered by frecency.
 - **Tap an item:** logs `qty 1, amount = price, ts = now` immediately, then shows the toast "Name ₹X · **Undo**".
 - **Long-press an item:** opens the log modal with qty stepper, amount (price × qty, editable), date/time, note, and an "Edit item" link.
