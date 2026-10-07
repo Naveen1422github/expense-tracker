@@ -21,6 +21,14 @@
     <div class="loading">loading</div>
   </div>
 
+  <!-- static on purpose: google's oauth brand review reads the raw html, so the home page must
+       name the app, say what it does and link the privacy policy without running any js. -->
+  <footer class="site-footer">
+    <strong>kharchly</strong> — one-tap daily expense tracker: spend, lend &amp; borrow, budgets, reports.
+    your data stays on your device (optional backup to your own google drive).
+    · <a href="privacy.html">privacy policy</a>
+  </footer>
+
   <script src="js/app.js" type="module"></script>
   <script>
     if ('serviceWorker' in navigator) {
